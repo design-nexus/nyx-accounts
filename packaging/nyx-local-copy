@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+"""Explicit local-data copy. Originals and existing preview data are never overwritten."""
+import os, pathlib, shutil, sqlite3, sys, uuid
+app = sys.argv[1] if len(sys.argv) == 2 else ''
+if app not in ('nyx-mail', 'nyx-contacts'):
+    raise SystemExit('Usage: nyx-local-copy nyx-mail|nyx-contacts')
+home = pathlib.Path.home()
+source = pathlib.Path(os.environ.get('NYX_ORIGINAL_DATA_HOME', str(home/'.local/share'))) / app
+destination = home/'.local/share/nyx-online-accounts-preview/data'/app
+if destination.exists():
+    raise SystemExit('Preview data already exists; nothing was overwritten')
+if not source.is_dir():
+    raise SystemExit('No existing local data found')
+staging = destination.parent / ('.incoming-' + str(uuid.uuid4()))
+staging.mkdir(mode=0o700, parents=True)
+for path in source.rglob('*'):
+    if path.is_symlink():
+        raise SystemExit('Source contains a symbolic link; snapshot stopped to avoid sharing writable files with the original')
+    relative = path.relative_to(source)
+    target = staging / relative
+    if path.is_dir():
+        target.mkdir(mode=0o700, exist_ok=True)
+        continue
+    if not path.is_file():
+        continue
+    companion = next((suffix for suffix in ('-wal','-shm','-journal') if path.name.endswith(suffix)), None)
+    if companion:
+        base = path.with_name(path.name[:-len(companion)])
+        if base.is_file():
+            with base.open('rb') as handle:
+                if handle.read(16) == b'SQLite format 3\x00':
+                    continue
+    target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with path.open('rb') as handle:
+        sqlite = handle.read(16) == b'SQLite format 3\x00'
+    if sqlite:
+        with sqlite3.connect(path.as_uri()+'?mode=ro', uri=True, timeout=10) as original, sqlite3.connect(target) as snapshot:
+            original.backup(snapshot)
+    else:
+        shutil.copyfile(path, target)
+    target.chmod(0o600)
+os.rename(staging, destination)
+print('Copied local data into the preview. Original files were not changed. Account authentication must be configured separately.')

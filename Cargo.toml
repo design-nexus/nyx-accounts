@@ -1,0 +1,30 @@
+[package]
+name = "nyx-accounts-service"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+oauth2 = "5"
+url = "2"
+anyhow = "1"
+glib = "0.22"
+gio = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+secret-service = { version = "5", features = ["rt-tokio-crypto-rust"] }
+uuid = { version = "1", features = ["v4"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-native-roots", "blocking"] }
+zeroize = { version = "1", features = ["derive"] }
+roxmltree = "0.21"
+rusqlite = { version = "0.40", features = ["bundled"] }
+
+[[bin]]
+name = "nyx-accountsd"
+path = "src/main.rs"
+
+[[bin]]
+name = "nyx-accountsctl"
+path = "src/cli.rs"

@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+prefix="$(cd -- "$(dirname -- "$0")/.." && pwd)"
+export NYX_ORIGINAL_DATA_HOME="${NYX_ORIGINAL_DATA_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}}"
+export NYX_ACCOUNTS_ORIGINAL_RUNTIME="${NYX_ACCOUNTS_ORIGINAL_RUNTIME:-${XDG_RUNTIME_DIR:?User runtime directory unavailable}}"
+export NYX_ACCOUNTS_SECRET_BUS_ADDRESS="${NYX_ACCOUNTS_SECRET_BUS_ADDRESS:-${DBUS_SESSION_BUS_ADDRESS:-unix:path=$NYX_ACCOUNTS_ORIGINAL_RUNTIME/bus}}"
+if [[ -n "${WAYLAND_DISPLAY:-}" && "$WAYLAND_DISPLAY" != /* ]]; then
+    export WAYLAND_DISPLAY="$NYX_ACCOUNTS_ORIGINAL_RUNTIME/$WAYLAND_DISPLAY"
+fi
+export XDG_RUNTIME_DIR="$NYX_ACCOUNTS_ORIGINAL_RUNTIME/nyx-online-accounts-preview"
+export PATH="$prefix/bin:$PATH"
+export XDG_DATA_HOME="$HOME/.local/share/nyx-online-accounts-preview/data"
+export XDG_CONFIG_HOME="$HOME/.local/share/nyx-online-accounts-preview/config"
+export NYX_ACCOUNTS_PREVIEW=1
+export XDG_STATE_HOME="$HOME/.local/share/nyx-online-accounts-preview/state"
+export XDG_CACHE_HOME="$HOME/.cache/nyx-online-accounts-preview"
+export XDG_DATA_DIRS="$prefix/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+mkdir -p "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_STATE_HOME" "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_STATE_HOME" "$XDG_RUNTIME_DIR"
+app="${1:-nyx-settings}"
+if [[ $# -gt 0 ]]; then shift; fi
+case "$app" in nyx-settings|nyx-mail|nyx-calendar|nyx-contacts|nyx-reminders|nyx-files|nyx-accountsctl|nyx-pim-migrate|nyx-local-copy) ;; *) exit 2;; esac
+exec dbus-run-session -- "$prefix/bin/$app" "$@"
