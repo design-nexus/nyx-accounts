@@ -89,6 +89,20 @@ pub fn apply_presets(account: &mut Account, region: Option<&str>) -> Result<()> 
 mod tests {
     use super::*;
     #[test]
+    fn regional_presets_are_secure_and_keep_explicit_server_overrides() {
+        for region in ["zoho.com","zoho.eu","zoho.in","zoho.com.au","zoho.jp","zohocloud.ca","zoho.sa","zoho.com.cn"] {
+            let mut a=Account{id:String::new(),provider:"zoho".into(),identity:"fixture@example.test".into(),label:String::new(),enabled:capabilities("zoho").unwrap().services,status:String::new(),client_id:None,endpoints:Default::default(),legacy_id:None,error:None,provider_user_id:None};
+            apply_presets(&mut a,Some(region)).unwrap();a.validate().unwrap();
+            assert_eq!(a.endpoints["imap"],format!("imaps://imappro.{region}:993"));
+            a.endpoints.insert("imap".into(),"imaps://chosen.example.test:993".into());
+            apply_presets(&mut a,Some(region)).unwrap();assert_eq!(a.endpoints["imap"],"imaps://chosen.example.test:993");
+            assert!(apply_presets(&mut a,Some("untrusted.example")).is_err());
+        }
+        for provider in ["fastmail","nextcloud","imap_smtp","caldav","carddav","webdav"] {
+            assert!(capabilities(provider).unwrap().app_password);
+        }
+    }
+    #[test]
     fn generic_provider_cannot_claim_unrelated_services() {
         assert!(
             !capabilities("carddav")

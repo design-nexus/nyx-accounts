@@ -1,8 +1,13 @@
-//! Explicit opt-in check using disposable synthetic values in the existing unlocked Secret Service.
+//! Explicit opt-in check for an independently supplied isolated Secret Service fixture.
 #[tokio::test]
-#[ignore = "requires an unlocked desktop Secret Service; creates and removes one unique fixture entry"]
+#[ignore = "requires a separately supplied temporary Secret Service fixture; never uses the desktop keyring"]
 async fn desktop_keyring_roundtrip_and_rotation() {
     use nyx_accounts_service::{model::Credentials, store};
+    let address=std::env::var("NYX_ACCOUNTS_SECRET_BUS_ADDRESS").expect("An isolated fixture bus must be supplied explicitly");
+    let temporary=std::env::temp_dir();
+    let socket=address.strip_prefix("unix:path=").expect("Fixture requires a local socket path");
+    assert!(std::path::Path::new(socket).starts_with(&temporary),"Desktop keyring tests are prohibited");
+    assert!(std::env::var_os("HOME").map(std::path::PathBuf::from).is_some_and(|h|h.starts_with(&temporary)),"Fixture HOME must be isolated; never use the desktop credential store");
     let id = format!("fixture-{}", uuid::Uuid::new_v4());
     let result: anyhow::Result<()> = async {
         store::ensure_secret(&id).await?;

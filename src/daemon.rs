@@ -306,7 +306,8 @@ impl Daemon {
         self.manager(connection, &header).await?;
         let _gate = self.refresh.lock().await;
         let mut account = self.get(id).map_err(safe_error)?;
-        if matches!(account.status.as_str(), "authorizing" | "removing") {
+        if matches!(account.status.as_str(), "authorizing" | "removing")
+            || (matches!(account.provider.as_str(), "google" | "microsoft_personal") && account.status == "needs_sign_in") {
             return Ok(account.status);
         }
         let status = match oauth::credential(&account).await {

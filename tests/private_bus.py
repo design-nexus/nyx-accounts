@@ -38,9 +38,15 @@ with tempfile.TemporaryDirectory(prefix='nyx-accounts-ipc-') as temporary:
                 assert session.recv(4096) == b''
             except ConnectionResetError:
                 pass
+        oauth_metadata=dict(metadata,provider='google',client_id='fixture-client',endpoints={},enabled=['calendar'])
+        oauth_id=cli('register',data=json.dumps(oauth_metadata)).stdout.strip()
+        assert cli('check',oauth_id).stdout.strip()=='needs_sign_in'
+        assert cli('refresh',oauth_id,check=False).returncode != 0
+        # The health check must not erase a scope-change/sign-in requirement.
+        assert next(a for a in json.loads(cli('list').stdout) if a['id']==oauth_id)['status']=='needs_sign_in'
         metadata['provider']='exchange' 
         assert cli('register',data=json.dumps(metadata),check=False).returncode != 0
-        assert len(json.loads(cli('list').stdout)) == 1
+        assert len(json.loads(cli('list').stdout)) == 2
         print('PASS: metadata registration/listing, manager validation, unsupported provider rejection, isolated storage')
     finally:
         daemon.terminate()

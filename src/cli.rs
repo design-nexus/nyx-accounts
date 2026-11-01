@@ -26,6 +26,10 @@ fn main() -> Result<()> {
             "{}",
             client.authorize(args.get(1).context("Account ID required")?)?
         ),
+        Some("check") => {
+            let status: String = client.call("CheckAccount", (args.get(1).context("Account ID required")?.as_str(),))?;
+            println!("{status}");
+        }
         Some("refresh") => {
             let renewed: bool = client.call("RefreshAccount", (args.get(1).context("Account ID required")?.as_str(),))?;
             anyhow::ensure!(renewed, "Renewal did not complete");
@@ -47,7 +51,7 @@ fn main() -> Result<()> {
         }
         Some("remove") => client.remove(args.get(1).context("Account ID required")?)?,
         _ => anyhow::bail!(
-            "Usage: nyx-accountsctl list | register < metadata.json | secret ID < credentials.json | authorize ID | refresh ID | revoke ID | remove ID"
+            "Usage: nyx-accountsctl list | register < metadata.json | secret ID < credentials.json | authorize ID | check ID | refresh ID | revoke ID | remove ID"
         ),
     }
     Ok(())

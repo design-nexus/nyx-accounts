@@ -348,21 +348,20 @@ async fn credential_with_refresh(account: &Account, force: bool) -> Result<Crede
         );
     }
     if matches!(account.provider.as_str(), "google" | "microsoft_personal")
-        && (force || credentials.expires_at <= now() + 60)
+        && renew_if_due_at(account, &mut credentials, force, now(), provider(account)?.token_endpoint()).await?
     {
-        anyhow::ensure!(!credentials.refresh_token.is_empty(), "Sign in again");
-        exchange(
-            account,
-            vec![
-                ("grant_type", "refresh_token".into()),
-                ("refresh_token", credentials.refresh_token.clone()),
-            ],
-            &mut credentials,
-        )
-        .await?;
         store::save_secret(&account.id, &credentials).await?;
     }
     Ok(credentials)
+}
+
+// The endpoint and clock are supplied internally so expiry behavior is testable
+// against a controlled server; production always uses the provider's fixed URL.
+async fn renew_if_due_at(account: &Account, credentials: &mut Credentials, force: bool, current_time: u64, endpoint: &str) -> Result<bool> {
+    if !force && credentials.expires_at > current_time.saturating_add(60) { return Ok(false); }
+    anyhow::ensure!(!credentials.refresh_token.is_empty(), "Sign in again");
+    exchange_at(account, endpoint, vec![("grant_type", "refresh_token".into()),("refresh_token",credentials.refresh_token.clone())], credentials).await?;
+    Ok(true)
 }
 
 #[cfg(test)]
@@ -400,6 +399,34 @@ mod tests {
             error: None,
             provider_user_id: None,
         }
+    }
+    #[tokio::test]
+    async fn revocation_posts_token_without_exposing_it_in_errors() {
+        for (status,ok) in [("200 OK",true),("400 Bad Request",false)] {
+            let (endpoint,request)=server("{}",status).await;
+            let result=revoke_token_at(&endpoint,"synthetic-private-token").await;
+            assert_eq!(result.is_ok(),ok);
+            if let Err(error)=result {assert!(!error.to_string().contains("synthetic-private-token"));}
+            let wire=request.await.unwrap();
+            assert!(wire.starts_with("POST /token HTTP/1.1"));
+            assert!(wire.contains("token=synthetic-private-token"));
+        }
+    }
+    #[tokio::test]
+    async fn expired_and_expiring_tokens_renew_without_user_sign_in() {
+        for expires in [999,1060] {
+            let (endpoint,request)=server(r#"{"access_token":"renewed","expires_in":3600,"token_type":"Bearer"}"#,"200 OK").await;
+            let mut c=Credentials::empty();c.refresh_token="retained".into();c.expires_at=expires;
+            assert!(renew_if_due_at(&account(),&mut c,false,1000,&endpoint).await.unwrap());
+            assert_eq!(c.access_token,"renewed");assert_eq!(c.refresh_token,"retained");
+            assert!(request.await.unwrap().contains("grant_type=refresh_token"));
+        }
+    }
+    #[tokio::test]
+    async fn unexpired_token_does_not_contact_the_provider() {
+        let mut c=Credentials::empty();c.access_token="still-valid".into();c.expires_at=1061;
+        assert!(!renew_if_due_at(&account(),&mut c,false,1000,"invalid-no-network").await.unwrap());
+        assert_eq!(c.access_token,"still-valid");
     }
     #[tokio::test]
     async fn refresh_rotates_token_and_sets_expiration() {
@@ -482,8 +509,12 @@ pub async fn revoke(account: &Account) -> Result<bool> {
     if token.is_empty() {
         return Ok(false);
     }
+    revoke_token_at("https://oauth2.googleapis.com/revoke", token).await?;
+    Ok(true)
+}
+async fn revoke_token_at(endpoint: &str, token: &str) -> Result<()> {
     let response = http()?
-        .post("https://oauth2.googleapis.com/revoke")
+        .post(endpoint)
         .form(&[("token", token)])
         .send()
         .await
@@ -492,7 +523,7 @@ pub async fn revoke(account: &Account) -> Result<bool> {
         response.status().is_success(),
         "Google revocation failed; revoke access in Google account settings"
     );
-    Ok(true)
+    Ok(())
 }
 #[cfg(test)]
 mod callback_tests {
