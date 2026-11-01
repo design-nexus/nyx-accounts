@@ -1,6 +1,6 @@
 # Development status and merge checklist
 
-This is an isolated development preview. Real provider authentication and end-to-end application behavior remain unverified.
+This is an isolated development preview. Non-Microsoft implementation and the requested Google/live plus other-provider fixture validation are complete. See NON_MICROSOFT_COMPLETION.md for evidence and verification boundaries. Microsoft remains deferred.
 
 ## Implemented
 
@@ -20,8 +20,8 @@ This is an isolated development preview. Real provider authentication and end-to
 
 ## Incomplete or unverified
 
-- Google and Microsoft credentials/accounts are not configured or live-tested. No production-verification claim is made.
-- Encrypted Secret Service save/load/rotation/deletion passed with a unique disposable synthetic entry on the unlocked desktop keyring. Lock/unlock interaction, real Cloud token renewal/mounting and full provider CRUD still require controlled account testing.
+- Google is configured and live-tested, including service CRUD, attachments, recurrence/DST and token renewal. Microsoft remains unconfigured/untested. Other providers use fixtures at Ken’s request; no production certification is claimed.
+- Google service CRUD, Cloud mounting and renewal passed. Credential lifecycle/error boundaries are covered by fixtures. Real keyring lock/unlock and user-grant revocation were not performed; credential tests now require an explicit isolated fixture environment.
 - Visual/accessibility, desktop notification and physical-input behavior have not been GUI-tested.
 - API contact photo/favorite mutations and fields that cannot be represented safely are refused before queueing. DAV/local books retain those fields. Uncommon recurrence/exception combinations and provider-specific task limitations are explicitly refused or retained for resolution.
 - Microsoft Graph getSchedule explicitly does not support personal accounts; no enterprise workaround is implemented. CalDAV scheduling requires a server advertising calendar-auto-schedule and appropriate privileges. Real provider delivery remains unverified.

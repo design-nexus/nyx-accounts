@@ -31,3 +31,7 @@ An explicit Google refresh-token grant succeeded through the daemon's normal ref
 `nyx-accountsctl refresh ID` requests this same renewal path explicitly. It requires an already connected OAuth account; it cannot clear a pending sign-in requirement after permissions change. The daemon serializes it with automatic refresh and account changes. The desktop keyring was retained and no private keyring was started.
 
 This confirms live refresh-token exchange and subsequent provider access. It does not substitute for observing unattended expiry, revocation, or a provider-issued refresh-token rotation. Microsoft personal remains pending, and the merge gate is unchanged.
+
+## Final non-Microsoft completion
+
+See NON_MICROSOFT_COMPLETION.md for attachment, Tasks, recurrence/DST, free/busy, desktop notification routing, fixture-provider and migration verification. Google remote diagnostic records were cleaned up; self-test emails remain available. Microsoft is the deferred provider; other providers use fixtures by user direction.
