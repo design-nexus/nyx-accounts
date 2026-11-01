@@ -461,7 +461,8 @@ impl Remote {
             "Untrusted API write endpoint"
         );
         let deleting = method == Method::DELETE;
-        let mut request = self.request(method, &uri).json(body);
+        let mut request = self.request(method, &uri);
+        if !deleting { request = request.json(body); }
         if let Some(etag) = etag {
             request = request.header("If-Match", etag);
         }
