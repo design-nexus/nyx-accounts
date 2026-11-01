@@ -28,7 +28,7 @@ This is an isolated development preview. Real provider authentication and end-to
 - Resolution UI is implemented for retained event/task conflicts and ambiguous creations. Provider-specific fields or recurrence that cannot be represented still require manual correction or an offline copy; archived snapshots have a review/recovery browser.
 - Synthetic migration tests cover recurrence, exceptions, custom time zones, raw fields, repeat imports, edited copies, source preferences and unchanged attachment references. Real attachment availability, unsent EDS operations, aliases and cache associations still require representative user-approved data testing. Original data remains intact.
 - Generic providers currently use one login identity/app password per account; provider-specific OAuth is implemented for Google/Microsoft, with app-password paths for the other supported providers.
-- Development uses sibling path dependencies. Immutable public feature/release pins and suite release coordination are required before publication/merge.
+- Cross-repository Accounts, native PIM and Cloud dependencies now use published immutable Git feature revisions. Consumer checks passed against those revisions. The coordinator has a separate feature inventory; supported main release pins remain unchanged.
 
 ## Remaining provider constraints
 

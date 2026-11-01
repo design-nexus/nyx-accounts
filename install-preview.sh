@@ -62,3 +62,7 @@ done
 
 install -d "$prefix/share/doc/nyx-accounts/licenses"
 install -m644 "$projects/nyx-core/crates/nyx-pim/data/ICAL-APACHE-2.0.txt" "$projects/nyx-core/crates/nyx-pim/data/UNICODE-LICENSE.txt" "$prefix/share/doc/nyx-accounts/licenses/"
+
+if [[ -f "$projects/nyx/docs/online-accounts-preview.toml" ]]; then
+    install -m644 "$projects/nyx/docs/online-accounts-preview.toml" "$prefix/share/doc/nyx-accounts/"
+fi

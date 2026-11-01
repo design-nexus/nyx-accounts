@@ -1,14 +1,17 @@
-# Feature publication and merge preparation
+# Published feature revisions and merge preparation
 
-The installed preview uses sibling development paths. No main branch has been changed, no feature branch pushed, and no pull request created. Public immutable dependency pins cannot point at unpublished local commits. Replacing them prematurely would make standalone builds fail.
+Ken authorized committing and pushing the feature work. All implementation repositories are published on `feature/nyx-online-accounts`, including the separate public design-nexus/nyx-accounts repository. No main branch was changed and no pull request was created or merged.
 
-When feature publication is authorized, publish in dependency order while retaining `feature/nyx-online-accounts` everywhere:
+Cross-repository dependencies now use immutable public Git revisions:
 
-1. Publish the separate `nyx-accounts` repository/feature commit.
-2. Replace external Accounts path dependencies in the Core and Cloud feature checkouts with that immutable Git revision; build and publish those feature commits.
-3. Replace external Accounts, native PIM and Cloud paths in the application feature checkouts with the published immutable revisions; retain internal workspace paths. Rebuild the preview and validate standalone consumers.
-4. Update the suite coordinator's feature release manifest after these exact revisions exist remotely. Keep supported main release pins unchanged until merge approval.
+| Dependency | Revision |
+|---|---|
+| Accounts code | `ecbe31cbfe6688dd5b3d7803c58e433715427c57` |
+| Core/native PIM | `1fa444e8c427f8d2f4b6fd6d1ace1c5298e4d623` |
+| Cloud | `709168078a32a3fe93632574c00281fbe5cdd01f` |
 
-Do not create a public repository, push branches, open a PR, or merge automatically as part of the preview installer. The installed FEATURE_COMMITS.json and FINAL_REPORT.md inventory the reviewable local commits. Publishing feature code is separate from approval to merge.
+Internal workspace paths remain internal. Targeted Core, Cloud and application consumer checks passed against the published dependencies. The coordinator's `docs/online-accounts-preview.toml` records the feature application revisions separately from supported `suite.toml`; normal release pins remain unchanged. Later Accounts documentation/installer commits do not change the pinned library code.
 
-Before merging: configure and live-test both Google and personal Microsoft OAuth; validate representative Mail/Calendar/Contacts/Reminders/Files operations, credential lifecycle and migration/data preservation; resolve material compatibility issues; run the required focused checks; then obtain Ken's explicit merge authorization. Mock tests, preview installation and implementation approval never authorize merging.
+The installed FEATURE_COMMITS.json and FINAL_REPORT.md record feature branch heads. The preview installer never creates repositories, pushes, creates PRs or merges automatically. Feature publication does not authorize merging.
+
+Before merging: configure and live-test both Google and personal Microsoft OAuth; validate representative Mail/Calendar/Contacts/Reminders/Files operations, credential lifecycle and real migration/data preservation; resolve material compatibility issues; run required focused checks; then obtain Ken's explicit merge authorization. Passing mocks, preview installation and implementation approval never authorize merging.

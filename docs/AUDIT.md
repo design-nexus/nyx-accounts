@@ -13,7 +13,7 @@ The suite consists of independent repositories under `/home/ken/Projects`. All f
 | nyx-cloud | Rust service/public client; rclone over private RC sockets; Cloud1 metadata and private Notes sessions | Reuse existing file/Notes operations. Native-account linking and anonymous-file credentials avoid provider refresh tokens in rclone configs. |
 | nyx-files | Cloud1 client and mounted storage UI | Existing protocol can consume new linked remotes without source changes. No Files GUI tests were run. |
 | nyx-notes | Existing Cloud Notes sessions and separate WebDAV sync | Existing Cloud protocol remains. No source changes required for native linked remotes. |
-| nyx | Independent-repo release/pin coordinator | Branch created, no implementation changes. Feature preview currently uses sibling path dependencies; publication/pinning is still required before release. |
+| nyx | Independent-repo release/pin coordinator | The separate docs/online-accounts-preview.toml feature inventory records published revisions. Supported suite.toml/main release pins remain unchanged. |
 | nyx-design | Shared Design 2.0 styles, provider-compatible theme tokens and app icons | Reused without modification. Existing untracked files preserved. |
 
 ## Authentication and security inventory
