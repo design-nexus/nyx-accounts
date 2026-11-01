@@ -11,7 +11,9 @@ This is an isolated development preview. Real provider authentication and end-to
 - Native Calendar/Contacts/Reminders storage; raw payload and time-zone preservation; recurrence/exception handling, series splitting, recurring task advancement, persisted relative/absolute alarms and snoozes.
 - Application-owned Google/Graph calendar/task read/write adapters, invitation responses, Google free/busy, contact reads, DAV discovery/capabilities and conditional calendar/task writes. Unsupported field conversions fail without discarding queued edits.
 - Settings includes synchronization issue review, conditional local/provider resolution, offline copies, explicit uncertain-create retry and archived snapshots. Cross-process synchronization/resolution is serialized, and uploads retain concurrent local edits.
-- Contacts retain the existing read-only online-book UI; incoming updates and remote-deletion tombstones preserve raw records.
+- Contacts reuse the existing editor for queued create/edit/delete in native books. Google People, personal Graph (including nested folders) and CardDAV adapters retain raw cards/provider JSON, enforce revision checks, protect stale editors, and retain conflicts or ambiguous creates. Unchanged grouped properties, parameters and folding remain intact.
+- Settings provides archive review/recovery as separate offline copies. Removing an account through Settings first preserves visible offline copies of its cached events, tasks and contacts, including unsynced new items. Repeat imports preserve edited copies and source preferences.
+- RFC 6638 CalDAV free/busy discovers the principal and scheduling outbox on the configured origin. Invitation responses require advertised automatic scheduling; unsupported client-managed delivery is refused. Provider HTTP 401 errors update account health.
 - Cloud native links and anonymous rclone configuration with brokered access-token renewal. Provider refresh tokens never leave Accounts. Existing external/legacy remotes remain untouched.
 - Explicit metadata/data export/import and local Mail/Contacts snapshot tools. These have not been run on user data.
 - Preview installation with a shared private bus/runtime and separate XDG stores, existing Settings UI, launcher/icon, and no automatic app opening or service restart.
@@ -19,14 +21,18 @@ This is an isolated development preview. Real provider authentication and end-to
 ## Incomplete or unverified
 
 - Google and Microsoft credentials/accounts are not configured or live-tested. No production-verification claim is made.
-- Live Secret Service locking/unlocking, Cloud token renewal/mounting and full provider CRUD require controlled account testing.
+- Encrypted Secret Service save/load/rotation/deletion passed with a unique disposable synthetic entry on the unlocked desktop keyring. Lock/unlock interaction, real Cloud token renewal/mounting and full provider CRUD still require controlled account testing.
 - Visual/accessibility, desktop notification and physical-input behavior have not been GUI-tested.
-- Online contact editing remains read-only; unsupported API fields, uncommon recurrence/exception combinations and provider-specific task limitations are explicitly refused or retained for resolution.
-- Personal Microsoft/CalDAV free-busy and CalDAV invitation-delivery behavior need provider-specific validation; unsupported operations return errors.
-- Resolution UI is implemented for retained event/task conflicts and ambiguous creations. Provider-specific fields or recurrence that cannot be represented still require manual correction or an offline copy; archived snapshots have no separate history browser yet.
-- Migration still requires validation of attachment references, unsent EDS operations, aliases, cache associations and representative user-approved data copies. Original data remains intact.
+- API contact photo/favorite mutations and fields that cannot be represented safely are refused before queueing. DAV/local books retain those fields. Uncommon recurrence/exception combinations and provider-specific task limitations are explicitly refused or retained for resolution.
+- Microsoft Graph getSchedule explicitly does not support personal accounts; no enterprise workaround is implemented. CalDAV scheduling requires a server advertising calendar-auto-schedule and appropriate privileges. Real provider delivery remains unverified.
+- Resolution UI is implemented for retained event/task conflicts and ambiguous creations. Provider-specific fields or recurrence that cannot be represented still require manual correction or an offline copy; archived snapshots have a review/recovery browser.
+- Synthetic migration tests cover recurrence, exceptions, custom time zones, raw fields, repeat imports, edited copies, source preferences and unchanged attachment references. Real attachment availability, unsent EDS operations, aliases and cache associations still require representative user-approved data testing. Original data remains intact.
 - Generic providers currently use one login identity/app password per account; provider-specific OAuth is implemented for Google/Microsoft, with app-password paths for the other supported providers.
 - Development uses sibling path dependencies. Immutable public feature/release pins and suite release coordination are required before publication/merge.
+
+## Remaining provider constraints
+
+Google contact deletion is preceded by a fresh individual read/revision comparison; its deleteContact API does not document atomic conditional deletion. The reviewed local version and raw provider baseline remain available locally, but concurrent provider edits during deletion require live compatibility validation. List omissions are confirmed by individual reads before cached API contacts are tombstoned, avoiding propagation-delay data loss.
 
 ## Security limits
 

@@ -47,3 +47,11 @@ App passwords cannot be revoked remotely through a universal protocol. Delete th
 ## Identity and preview storage
 
 Enter the account's primary email for initial OAuth authorization. Later reauthentication is checked against its immutable provider identifier; connecting another person requires a separate profile, preserving existing cache associations. The isolated preview uses the existing desktop Secret Service with a separate keyring namespace. It does not provision a second keyring or copy GOA secrets.
+
+## Contact editing and scheduling
+
+Google contact updates use the People API and its contact-source revisions; only contact sources are requested, excluding profile-only data. Microsoft personal contact edits use delegated Graph Contacts.ReadWrite, including discovered child folders. Unsupported API photo/favorite mutations and unrepresentable fields remain in the editor rather than silently disappearing. CardDAV/local books can retain full raw cards. Uncertain API creates require checking the provider before an explicit retry.
+
+Personal Microsoft free/busy through getSchedule is explicitly unsupported. CalDAV free/busy and automatic invitation replies require the server's RFC 6638 calendar-auto-schedule capability and scheduling privileges; client-managed invitation delivery is refused. Provider-specific end-to-end behavior still requires a real account.
+
+References: https://developers.google.com/people/api/rest/v1/people/updateContact ; https://developers.google.com/people/api/rest/v1/people.connections/list ; https://learn.microsoft.com/en-us/graph/api/contact-update?view=graph-rest-1.0 ; https://learn.microsoft.com/en-us/graph/api/user-list-contactfolders?view=graph-rest-1.0 ; https://learn.microsoft.com/en-us/graph/api/calendar-getschedule?view=graph-rest-1.0 ; https://www.rfc-editor.org/rfc/rfc6638.html

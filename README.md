@@ -8,6 +8,7 @@ This is an isolated development preview. It is not merge-ready and Google/Micros
 - [Implementation status and remaining work](docs/IMPLEMENTATION.md)
 - [Provider setup instructions](docs/PROVIDERS.md)
 - [Security boundaries](docs/SECURITY.md)
+- [Publication and merge preparation](docs/RELEASE.md)
 
 The service owns authentication, Secret Service credentials, refresh and grants. Application engines own synchronization. Refresh tokens never leave the service. D-Bus carries metadata and private-session handles only.
 
@@ -24,6 +25,10 @@ dbus-run-session -- python3 tests/private_bus.py
 python3 tests/preview.py
 # After building the feature nyx-cloud debug binary:
 python3 tests/service_lifecycle.py
+# After building nyx-pim-migrate in nyx-core:
+python3 tests/migration.py
+# Optional unlocked desktop keyring check; uses disposable synthetic values:
+cargo test --test keyring -- --ignored
 ```
 
 All merges require successful real Google and personal Microsoft OAuth testing, validated integration/data preservation, passing required checks and explicit user approval. Implementation approval is not merge approval.

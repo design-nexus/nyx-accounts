@@ -163,3 +163,5 @@ mod lifetime_tests {
         std::fs::remove_file(path).unwrap();
     }
 }
+
+mod scheduling;

@@ -13,6 +13,7 @@ pub struct Remote {
     pub account: Account,
     secret: Credentials,
     http: Client,
+    service: Option<Service>,
 }
 #[derive(Debug)]
 pub struct DavObject {
@@ -25,13 +26,28 @@ impl Remote {
         Ok(Self {
             account,
             secret,
+            service: None,
             http: Client::builder()
                 .redirect(reqwest::redirect::Policy::none())
                 .timeout(std::time::Duration::from_secs(30))
                 .build()?,
         })
     }
-    fn request(&self, method: Method, url: &Url) -> RequestBuilder {
+    /// Associate health failures with the consumer's grant; the daemon validates the installed caller again.
+    pub fn for_service(mut self, service: Service) -> Self {
+        self.service = Some(service);
+        self
+    }
+    pub(crate) fn record_http_status(&self, status: reqwest::StatusCode) {
+        if status == reqwest::StatusCode::UNAUTHORIZED {
+            if let Some(service) = &self.service {
+                let _ = crate::Client::connect().and_then(|client| {
+                    client.report_auth_failure(&self.account.id, service.clone())
+                });
+            }
+        }
+    }
+    pub(crate) fn request(&self, method: Method, url: &Url) -> RequestBuilder {
         let request = self
             .http
             .request(method, url.clone())
@@ -42,7 +58,8 @@ impl Remote {
             request.bearer_auth(&self.secret.access_token)
         }
     }
-    fn text(&self, response: reqwest::blocking::Response) -> Result<String> {
+    pub(crate) fn text(&self, response: reqwest::blocking::Response) -> Result<String> {
+        self.record_http_status(response.status());
         anyhow::ensure!(
             response.status().is_success(),
             "Provider request failed ({})",
@@ -60,6 +77,11 @@ impl Remote {
         Ok(data)
     }
     pub fn json(&self, url: &str) -> Result<Value> {
+        self.json_if_present(url)?
+            .context("Provider item was not found")
+    }
+    /// Distinguish a confirmed missing item from network/permission failures before reconciling deletions.
+    pub fn json_if_present(&self, url: &str) -> Result<Option<Value>> {
         let uri = Url::parse(url)?;
         let host = if self.account.provider == "google" {
             "www.googleapis.com"
@@ -85,13 +107,14 @@ impl Remote {
                 && uri.password().is_none(),
             "Untrusted API endpoint"
         );
-        Ok(serde_json::from_str(
-            &self.text(
-                self.request(Method::GET, &uri)
-                    .send()
-                    .context("Provider unavailable")?,
-            )?,
-        )?)
+        let response = self
+            .request(Method::GET, &uri)
+            .send()
+            .context("Provider unavailable")?;
+        if response.status().as_u16() == 404 {
+            return Ok(None);
+        }
+        Ok(Some(serde_json::from_str(&self.text(response)?)?))
     }
     pub fn list(&self, service: Service) -> Result<Vec<Value>> {
         anyhow::ensure!(
@@ -104,7 +127,7 @@ impl Remote {
                 "https://www.googleapis.com/calendar/v3/users/me/calendarList"
             }
             ("google", Service::Contacts) => {
-                "https://people.googleapis.com/v1/people/me/connections?personFields=names,emailAddresses,phoneNumbers,addresses,organizations,birthdays,biographies,metadata,urls"
+                "https://people.googleapis.com/v1/people/me/connections?personFields=names,emailAddresses,phoneNumbers,addresses,organizations,birthdays,biographies,metadata,urls&sources=READ_SOURCE_TYPE_CONTACT"
             }
             ("google", Service::Files) => "https://www.googleapis.com/drive/v3/files",
             ("google", Service::Tasks) => "https://tasks.googleapis.com/tasks/v1/users/@me/lists",
@@ -238,9 +261,18 @@ impl Remote {
                 && target.path().starts_with(base.path()),
             "Untrusted DAV write endpoint"
         );
-        let request = self
-            .request(Method::PUT, &target)
-            .header("Content-Type", "text/calendar; charset=utf-8");
+        let request = self.request(Method::PUT, &target).header(
+            "Content-Type",
+            if payload
+                .trim_start()
+                .get(..11)
+                .is_some_and(|s| s.eq_ignore_ascii_case("BEGIN:VCARD"))
+            {
+                "text/vcard; charset=utf-8"
+            } else {
+                "text/calendar; charset=utf-8"
+            },
+        );
         let request = if let Some(etag) = etag {
             request.header("If-Match", etag)
         } else {
@@ -250,6 +282,7 @@ impl Remote {
             .body(payload.to_owned())
             .send()
             .context("DAV write failed")?;
+        self.record_http_status(response.status());
         anyhow::ensure!(
             response.status().is_success(),
             "DAV write refused or conflicted ({})",
@@ -384,6 +417,7 @@ impl Remote {
             .header("If-Match", etag)
             .send()
             .context("DAV deletion failed")?;
+        self.record_http_status(response.status());
         anyhow::ensure!(
             response.status().is_success() || response.status().as_u16() == 404,
             "DAV delete refused or conflicted"
@@ -440,6 +474,7 @@ impl Remote {
             return Ok(Value::Null);
         }
         if !response.status().is_success() {
+            self.record_http_status(response.status());
             return Err(ApiWriteError {
                 status: response.status().as_u16(),
             }
@@ -463,3 +498,172 @@ impl std::fmt::Display for ApiWriteError {
     }
 }
 impl std::error::Error for ApiWriteError {}
+
+#[cfg(test)]
+mod fixture_tests {
+    use super::*;
+    use std::{
+        collections::BTreeSet,
+        io::BufRead,
+        process::{Command, Stdio},
+    };
+    struct Fixture {
+        dir: std::path::PathBuf,
+        child: Option<std::process::Child>,
+    }
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            if let Some(child) = self.child.as_mut() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+    #[test]
+    fn tls_dav_contact_writes_and_scheduling_use_verified_transport() {
+        let dir = std::env::temp_dir().join(format!("nyx-dav-tls-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let mut fixture = Fixture {
+            dir: dir.clone(),
+            child: None,
+        };
+        let cert = dir.join("cert.pem");
+        let key = dir.join("key.pem");
+        let ca = dir.join("ca.pem");
+        let ca_key = dir.join("ca.key");
+        let csr = dir.join("server.csr");
+        let extensions = dir.join("server.ext");
+        std::fs::write(&extensions,"basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\nsubjectAltName=IP:127.0.0.1\n").unwrap();
+        let run = |command: &mut Command| {
+            assert!(
+                command
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status()
+                    .unwrap()
+                    .success()
+            )
+        };
+        run(Command::new("openssl")
+            .args([
+                "req",
+                "-x509",
+                "-newkey",
+                "rsa:2048",
+                "-nodes",
+                "-days",
+                "1",
+                "-subj",
+                "/CN=Nyx Test CA",
+                "-keyout",
+            ])
+            .arg(&ca_key)
+            .arg("-out")
+            .arg(&ca));
+        run(Command::new("openssl")
+            .args([
+                "req",
+                "-new",
+                "-newkey",
+                "rsa:2048",
+                "-nodes",
+                "-subj",
+                "/CN=127.0.0.1",
+                "-keyout",
+            ])
+            .arg(&key)
+            .arg("-out")
+            .arg(&csr));
+        run(Command::new("openssl")
+            .args(["x509", "-req", "-days", "1", "-in"])
+            .arg(&csr)
+            .arg("-CA")
+            .arg(&ca)
+            .arg("-CAkey")
+            .arg(&ca_key)
+            .arg("-CAcreateserial")
+            .arg("-extfile")
+            .arg(&extensions)
+            .arg("-out")
+            .arg(&cert));
+        let mut child = Command::new("python3")
+            .arg(
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("tests/fixtures/dav_server.py"),
+            )
+            .arg(&cert)
+            .arg(&key)
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let mut port = String::new();
+        std::io::BufReader::new(child.stdout.take().unwrap())
+            .read_line(&mut port)
+            .unwrap();
+        let port = port.trim().parse::<u16>().unwrap();
+        fixture.child = Some(child);
+        let base = format!("https://127.0.0.1:{port}");
+        let account = Account {
+            id: "fixture".into(),
+            provider: "nextcloud".into(),
+            identity: "fixture@example.test".into(),
+            label: "Fixture".into(),
+            enabled: BTreeSet::from([Service::Calendar, Service::Contacts]),
+            status: "configured".into(),
+            client_id: None,
+            endpoints: Default::default(),
+            legacy_id: None,
+            error: None,
+            provider_user_id: None,
+        };
+        let mut secret = Credentials::empty();
+        secret.password = "fixture-password".into();
+        let mut remote = Remote::new(account, secret).unwrap();
+        remote.http = Client::builder()
+            .add_root_certificate(
+                reqwest::Certificate::from_pem(&std::fs::read(&ca).unwrap()).unwrap(),
+            )
+            .redirect(reqwest::redirect::Policy::none())
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap();
+        let payload = "BEGIN:VCARD\r\nVERSION:3.0\r\nUID:fixture\r\nFN:Fixture\r\nEND:VCARD\r\n";
+        assert_eq!(
+            remote
+                .dav_put(&format!("{base}/book/"), "new.vcf", payload, None)
+                .unwrap(),
+            "\"v1\""
+        );
+        assert_eq!(
+            remote
+                .dav_put(&format!("{base}/book/"), "new.vcf", payload, Some("\"v1\""))
+                .unwrap(),
+            "\"v2\""
+        );
+        assert!(
+            remote
+                .dav_put(
+                    &format!("{base}/book/"),
+                    "conflict.vcf",
+                    payload,
+                    Some("\"v1\"")
+                )
+                .is_err()
+        );
+        remote
+            .dav_delete(&format!("{base}/book/"), "new.vcf", "\"v2\"")
+            .unwrap();
+        let availability = remote
+            .dav_free_busy(
+                &format!("{base}/calendars"),
+                "20261030T120000Z",
+                "20261030T140000Z",
+                "20261030T110000Z",
+                &["friend@example.test".into()],
+            )
+            .unwrap();
+        assert_eq!(availability[0].0, "friend@example.test");
+        assert!(availability[0].1.contains("BEGIN:VFREEBUSY"));
+    }
+}
