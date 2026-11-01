@@ -123,3 +123,43 @@ pub fn open_management() -> anyhow::Result<()> {
     Ok(())
 }
 pub mod remote;
+
+/// Keep service lifetime bound to its owning bus, including an unexpectedly stopped preview session.
+pub async fn wait_for_bus_disconnect(connection: zbus::Connection) {
+    use futures_util::StreamExt;
+    let mut messages = zbus::MessageStream::from(connection);
+    while let Some(message) = messages.next().await {
+        if message.is_err() {
+            break;
+        }
+    }
+}
+
+/// Prevent an old bus generation from overlapping a newly activated service during cleanup.
+pub fn service_lifetime_lock(path: &std::path::Path) -> anyhow::Result<std::fs::File> {
+    use std::os::unix::fs::OpenOptionsExt;
+    let guard = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .mode(0o600)
+        .open(path)?;
+    guard.try_lock().map_err(|_| {
+        anyhow::anyhow!("The previous preview service is still shutting down; retry shortly")
+    })?;
+    Ok(guard)
+}
+
+#[cfg(test)]
+mod lifetime_tests {
+    #[test]
+    fn service_generation_lock_is_released_only_when_owner_exits() {
+        let path = std::env::temp_dir().join(format!("nyx-lifetime-{}", uuid::Uuid::new_v4()));
+        let guard = super::service_lifetime_lock(&path).unwrap();
+        assert!(super::service_lifetime_lock(&path).is_err());
+        drop(guard);
+        assert!(super::service_lifetime_lock(&path).is_ok());
+        std::fs::remove_file(path).unwrap();
+    }
+}

@@ -5,7 +5,7 @@ prefix="$HOME/.local/opt/nyx-online-accounts-preview"
 install -d "$prefix/bin" "$prefix/share/dbus-1/services" "$prefix/share/doc/nyx-accounts"
 cargo build --release --locked --manifest-path "$source_dir/Cargo.toml"
 install -m755 "$source_dir/target/release/nyx-accountsd" "$source_dir/target/release/nyx-accountsctl" "$prefix/bin/"
-install -m755 "$source_dir/packaging/nyx-online-accounts-preview" "$source_dir/packaging/nyx-local-copy" "$prefix/bin/"
+install -m755 "$source_dir/packaging/nyx-online-accounts-preview" "$source_dir/packaging/nyx-local-copy" "$source_dir/packaging/nyx-preview-session" "$prefix/bin/"
 install -m644 "$source_dir/docs/"*.md "$prefix/share/doc/nyx-accounts/"
 cat > "$prefix/share/dbus-1/services/io.github.design_nexus.nyx.Accounts.Preview.service" <<SERVICE
 [D-BUS Service]

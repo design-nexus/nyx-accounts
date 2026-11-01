@@ -8,6 +8,7 @@ license = "MIT"
 oauth2 = "5"
 url = "2"
 anyhow = "1"
+futures-util = "0.3"
 glib = "0.22"
 gio = "0.22"
 serde = { version = "1", features = ["derive"] }

@@ -20,4 +20,4 @@ chmod 700 "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_STATE_HOME
 app="${1:-nyx-settings}"
 if [[ $# -gt 0 ]]; then shift; fi
 case "$app" in nyx-settings|nyx-mail|nyx-calendar|nyx-contacts|nyx-reminders|nyx-files|nyx-accountsctl|nyx-pim-migrate|nyx-local-copy) ;; *) exit 2;; esac
-exec dbus-run-session -- "$prefix/bin/$app" "$@"
+exec "$prefix/bin/nyx-preview-session" "$prefix/bin/$app" "$@"

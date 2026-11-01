@@ -10,10 +10,11 @@ This is an isolated development preview. Real provider authentication and end-to
 - Mail uses native discovery and private credentials with its existing IMAP/SMTP and Graph engines; its data schemas remain unchanged.
 - Native Calendar/Contacts/Reminders storage; raw payload and time-zone preservation; recurrence/exception handling, series splitting, recurring task advancement, persisted relative/absolute alarms and snoozes.
 - Application-owned Google/Graph calendar/task read/write adapters, invitation responses, Google free/busy, contact reads, DAV discovery/capabilities and conditional calendar/task writes. Unsupported field conversions fail without discarding queued edits.
+- Settings includes synchronization issue review, conditional local/provider resolution, offline copies, explicit uncertain-create retry and archived snapshots. Cross-process synchronization/resolution is serialized, and uploads retain concurrent local edits.
 - Contacts retain the existing read-only online-book UI; incoming updates and remote-deletion tombstones preserve raw records.
 - Cloud native links and anonymous rclone configuration with brokered access-token renewal. Provider refresh tokens never leave Accounts. Existing external/legacy remotes remain untouched.
 - Explicit metadata/data export/import and local Mail/Contacts snapshot tools. These have not been run on user data.
-- Preview installation with private bus/runtime and separate XDG stores, existing Settings UI, launcher/icon, and no automatic app opening or service restart.
+- Preview installation with a shared private bus/runtime and separate XDG stores, existing Settings UI, launcher/icon, and no automatic app opening or service restart.
 
 ## Incomplete or unverified
 
@@ -22,7 +23,7 @@ This is an isolated development preview. Real provider authentication and end-to
 - Visual/accessibility, desktop notification and physical-input behavior have not been GUI-tested.
 - Online contact editing remains read-only; unsupported API fields, uncommon recurrence/exception combinations and provider-specific task limitations are explicitly refused or retained for resolution.
 - Personal Microsoft/CalDAV free-busy and CalDAV invitation-delivery behavior need provider-specific validation; unsupported operations return errors.
-- Conflicts and ambiguous task creations are retained, but a complete graphical synchronization-conflict resolution flow is unfinished.
+- Resolution UI is implemented for retained event/task conflicts and ambiguous creations. Provider-specific fields or recurrence that cannot be represented still require manual correction or an offline copy; archived snapshots have no separate history browser yet.
 - Migration still requires validation of attachment references, unsent EDS operations, aliases, cache associations and representative user-approved data copies. Original data remains intact.
 - Generic providers currently use one login identity/app password per account; provider-specific OAuth is implemented for Google/Microsoft, with app-password paths for the other supported providers.
 - Development uses sibling path dependencies. Immutable public feature/release pins and suite release coordination are required before publication/merge.

@@ -17,12 +17,14 @@ async fn main() -> Result<()> {
         .parent()
         .context("Missing installation prefix")?
         .to_owned();
+    std::fs::create_dir_all(&runtime)?;
+    let _generation = nyx_accounts_service::service_lifetime_lock(&runtime.join("service.lock"))?;
     let daemon = Daemon::new(data, runtime, prefix)?;
-    let _connection = zbus::connection::Builder::session()?
+    let connection = zbus::connection::Builder::session()?
         .name(BUS)?
         .serve_at(PATH, daemon)?
         .build()
         .await?;
-    std::future::pending::<()>().await;
+    nyx_accounts_service::wait_for_bus_disconnect(connection).await;
     Ok(())
 }

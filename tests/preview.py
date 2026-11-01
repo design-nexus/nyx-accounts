@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Disposable fixture checks; no desktop app or user store is opened."""
-import json, os, pathlib, shutil, sqlite3, subprocess, tempfile
+import concurrent.futures, json, os, pathlib, shutil, signal, sqlite3, subprocess, tempfile
 root=pathlib.Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='nyx-preview-fixture-') as temporary:
     base=pathlib.Path(temporary)
     prefix=base/'prefix';(prefix/'bin').mkdir(parents=True)
     shutil.copy2(root/'packaging/nyx-online-accounts-preview',prefix/'bin/nyx-online-accounts-preview')
+    shutil.copy2(root/'packaging/nyx-preview-session',prefix/'bin/nyx-preview-session')
     fake=prefix/'bin/nyx-accountsctl'
     fake.write_text('#!/usr/bin/python3\nimport os,json\nprint(json.dumps({key:os.environ[key] for key in ["XDG_RUNTIME_DIR","XDG_DATA_HOME","DBUS_SESSION_BUS_ADDRESS","NYX_ACCOUNTS_SECRET_BUS_ADDRESS","WAYLAND_DISPLAY"]}))\n')
     fake.chmod(0o755)
@@ -22,6 +23,24 @@ with tempfile.TemporaryDirectory(prefix='nyx-preview-fixture-') as temporary:
     assert values['DBUS_SESSION_BUS_ADDRESS']!=address
     assert values['WAYLAND_DISPLAY']==str(runtime/'wayland-fixture')
     assert (sentinel/'rclone.sock').read_text()=='original-runtime-sentinel'
+    def launch(_):
+        result=subprocess.run([prefix/'bin/nyx-online-accounts-preview','nyx-accountsctl'],env=env,capture_output=True,text=True,check=True)
+        return json.loads(result.stdout)['DBUS_SESSION_BUS_ADDRESS']
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        assert set(pool.map(launch,range(4)))=={values['DBUS_SESSION_BUS_ADDRESS']}
+    bus_env=dict(env,DBUS_SESSION_BUS_ADDRESS=values['DBUS_SESSION_BUS_ADDRESS'])
+    def bus_id():
+        return subprocess.check_output(['gdbus','call','--session','--dest','org.freedesktop.DBus','--object-path','/org/freedesktop/DBus','--method','org.freedesktop.DBus.GetId'],env=bus_env,text=True)
+    original_id=bus_id()
+    launch(None)
+    assert bus_id()==original_id
+    os.kill(int((runtime/'nyx-online-accounts-preview/bus.pid').read_text()),signal.SIGTERM)
+    # Reap only the private fixture bus; restart must recover from a stopped session.
+    import time
+    time.sleep(.1)
+    launch(None)
+    assert bus_id()!=original_id
+    os.kill(int((runtime/'nyx-online-accounts-preview/bus.pid').read_text()),signal.SIGTERM)
     source=base/'source/nyx-mail';source.mkdir(parents=True)
     with sqlite3.connect(source/'mail.sqlite') as db:
         db.execute('PRAGMA journal_mode=WAL');db.execute('CREATE TABLE fixture(value TEXT)');db.execute("INSERT INTO fixture VALUES('preserved')");db.commit()
@@ -33,4 +52,4 @@ with tempfile.TemporaryDirectory(prefix='nyx-preview-fixture-') as temporary:
         assert copied.execute('SELECT value FROM fixture').fetchone()[0]=='preserved'
     assert (destination/'message-wal').read_text()=='ordinary-message-file'
     assert subprocess.run([root/'packaging/nyx-local-copy','nyx-mail'],env=env,capture_output=True).returncode!=0
-    print('PASS: private runtime/bus, desktop keyring route, Wayland routing, untouched original runtime, SQLite snapshot, non-overwrite copy')
+    print('PASS: shared private bus, concurrent launch and restart, private runtime, desktop keyring route, Wayland routing, untouched original runtime, SQLite snapshot, non-overwrite copy')
