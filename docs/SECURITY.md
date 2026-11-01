@@ -19,3 +19,5 @@ OAuth profile binding uses verified provider subject IDs. A browser account swit
 Application-owned PIM synchronization and conflict resolution share a database-specific OS lock across processes. Resolution verifies both provider and local snapshots inside a transaction; stale dialogs cannot silently discard newer edits. Both versions remain archived. The preview bus is started only by explicit launcher/command invocation and reused by later launches; it does not install an autostart user unit.
 
 The private preview bus reads only the preview prefix’s Nyx D-Bus service files. It does not load desktop session activation directories, so calls cannot auto-start a second Secret Service, portal, or GVfs instance. Account credential access explicitly connects to the original desktop bus via `NYX_ACCOUNTS_SECRET_BUS_ADDRESS`; the original keyring and collections are never replaced or reset.
+
+Explicit OAuth renewal is manager-only, serialized with credential and account changes, and returns only success. It refuses accounts requiring sign-in, so refreshing existing grants cannot clear a scope-change reauthorization requirement.

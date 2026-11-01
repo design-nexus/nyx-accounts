@@ -20,6 +20,14 @@ Focused context/revision/projection tests and the application release builds pas
 
 ## Still unverified / merge gate
 
-Live token expiry/refresh rotation, revocation, broader recurrence/attachment behavior, keyring lock/unlock interaction, real user migration, and manual application UI behavior still need validation. Microsoft personal remains unconfigured and untested while access to Entra is unavailable. Other providers remain fixture/source validated only. This is not a production certification.
+Unattended natural token expiry, provider refresh-token rotation when Google chooses to rotate it, revocation, broader recurrence/attachment behavior, keyring lock/unlock interaction, real user migration, and manual application UI behavior still need validation. Microsoft personal remains unconfigured and untested while access to Entra is unavailable. Other providers remain fixture/source validated only. This is not a production certification.
 
 All work remains on `feature/nyx-online-accounts`. Google success does not waive the Microsoft tests or the user's explicit merge approval. No main branch or supported suite release pins were changed.
+
+## Live renewal follow-up
+
+An explicit Google refresh-token grant succeeded through the daemon's normal refresh/exchange/keyring path. No access or refresh token was returned over D-Bus or printed. Google Calendar then completed a full synchronization, and Drive completed a fresh provider connection test using credentials supplied by Accounts. An ordinary gdbus caller was denied access to the manager-only renewal method.
+
+`nyx-accountsctl refresh ID` requests this same renewal path explicitly. It requires an already connected OAuth account; it cannot clear a pending sign-in requirement after permissions change. The daemon serializes it with automatic refresh and account changes. The desktop keyring was retained and no private keyring was started.
+
+This confirms live refresh-token exchange and subsequent provider access. It does not substitute for observing unattended expiry, revocation, or a provider-issued refresh-token rotation. Microsoft personal remains pending, and the merge gate is unchanged.

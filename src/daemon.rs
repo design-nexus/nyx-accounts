@@ -328,6 +328,28 @@ impl Daemon {
         self.save(&account).map_err(safe_error)?;
         Ok(status.into())
     }
+    /// Manager-only renewal; no credential material is returned over D-Bus.
+    async fn refresh_account(
+        &self,
+        id: &str,
+        #[zbus(connection)] connection: &zbus::Connection,
+        #[zbus(header)] header: zbus::message::Header<'_>,
+    ) -> zbus::fdo::Result<bool> {
+        self.manager(connection, &header).await?;
+        let _gate = self.refresh.lock().await;
+        let mut account = self.get(id).map_err(safe_error)?;
+        if !matches!(account.provider.as_str(), "google" | "microsoft_personal") {
+            return Err(zbus::fdo::Error::InvalidArgs("This provider uses an app password".into()));
+        }
+        if account.status != "connected" {
+            return Err(zbus::fdo::Error::Failed("Sign in before renewing authorization".into()));
+        }
+        oauth::refresh(&account).await.map_err(safe_error)?;
+        account.status = "connected".into();
+        account.error = None;
+        self.save(&account).map_err(safe_error)?;
+        Ok(true)
+    }
     async fn revoke_authorization(
         &self,
         id: &str,

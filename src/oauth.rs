@@ -333,6 +333,13 @@ pub async fn begin_with_gate(
     Ok((url.into(), future))
 }
 pub async fn credential(account: &Account) -> Result<Credentials> {
+    credential_with_refresh(account, false).await
+}
+/// Explicit renewal uses the same exchange/storage path as automatic expiry.
+pub async fn refresh(account: &Account) -> Result<()> {
+    credential_with_refresh(account, true).await.map(|_| ())
+}
+async fn credential_with_refresh(account: &Account, force: bool) -> Result<Credentials> {
     let mut credentials = store::load_secret(&account.id).await?;
     if !matches!(account.provider.as_str(), "google" | "microsoft_personal") {
         anyhow::ensure!(
@@ -341,7 +348,7 @@ pub async fn credential(account: &Account) -> Result<Credentials> {
         );
     }
     if matches!(account.provider.as_str(), "google" | "microsoft_personal")
-        && credentials.expires_at <= now() + 60
+        && (force || credentials.expires_at <= now() + 60)
     {
         anyhow::ensure!(!credentials.refresh_token.is_empty(), "Sign in again");
         exchange(
