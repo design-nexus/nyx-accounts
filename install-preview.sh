@@ -18,9 +18,10 @@ cat > "$HOME/.local/share/applications/nyx-online-accounts-preview.desktop" <<DE
 Type=Application
 Name=Online Accounts Preview
 Comment=Isolated Nyx native accounts development preview
-Exec=$prefix/bin/nyx-online-accounts-preview nyx-settings --section online-accounts
+Exec=/usr/bin/systemd-run --user --collect --quiet --property=Type=exec $prefix/bin/nyx-online-accounts-preview nyx-settings --section online-accounts
 Icon=preferences-system
 Categories=Settings;
+StartupWMClass=io.github.design_nexus.nyx.Settings
 Terminal=false
 DESKTOP
 

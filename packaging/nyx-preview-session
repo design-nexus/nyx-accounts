@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 """Join the preview's single private session bus, starting it on explicit launch."""
 import fcntl
 import os
@@ -6,6 +6,7 @@ from pathlib import Path
 import stat
 import subprocess
 import sys
+from xml.sax.saxutils import escape
 
 runtime = Path(os.environ['XDG_RUNTIME_DIR'])
 address = 'unix:path=' + str(runtime / 'bus')
@@ -28,8 +29,21 @@ with open(runtime / 'bus.lock', 'a', opener=lambda p, flags: os.open(p, flags, 0
             if not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid():
                 raise SystemExit('Preview bus path is not an owned socket')
             socket.unlink()
+        # --session loads every desktop .service file, including GNOME Keyring,
+        # portals and GVfs. A private preview bus must activate only our services.
+        services = Path(__file__).resolve().parents[1] / 'share/dbus-1/services'
+        config = runtime / 'bus.conf'
+        config.write_text(
+            '<busconfig><type>session</type><auth>EXTERNAL</auth>'
+            '<listen>' + escape(address) + '</listen>'
+            '<servicedir>' + escape(str(services)) + '</servicedir>'
+            '<policy context="default"><allow own="*"/>'
+            '<allow send_destination="*"/><allow receive_sender="*"/></policy>'
+            '</busconfig>\n'
+        )
+        os.chmod(config, 0o600)
         daemon = subprocess.run(
-            ['dbus-daemon', '--session', '--fork', '--nopidfile', '--address=' + address, '--print-pid=1'],
+            ['dbus-daemon', '--config-file=' + str(config), '--fork', '--nopidfile', '--print-pid=1'],
             env=env, text=True, capture_output=True, check=True,
         )
         (runtime / 'bus.pid').write_text(str(int(daemon.stdout.strip())) + '\n')

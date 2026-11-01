@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 prefix="$(cd -- "$(dirname -- "$0")/.." && pwd)"
+export NYX_ACCOUNTS_ORIGINAL_CONFIG_HOME="${NYX_ACCOUNTS_ORIGINAL_CONFIG_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}}"
+export NYX_ACCOUNTS_ORIGINAL_STATE_HOME="${NYX_ACCOUNTS_ORIGINAL_STATE_HOME:-${XDG_STATE_HOME:-$HOME/.local/state}}"
 export NYX_ORIGINAL_DATA_HOME="${NYX_ORIGINAL_DATA_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}}"
 export NYX_ACCOUNTS_ORIGINAL_RUNTIME="${NYX_ACCOUNTS_ORIGINAL_RUNTIME:-${XDG_RUNTIME_DIR:?User runtime directory unavailable}}"
 export NYX_ACCOUNTS_SECRET_BUS_ADDRESS="${NYX_ACCOUNTS_SECRET_BUS_ADDRESS:-${DBUS_SESSION_BUS_ADDRESS:-unix:path=$NYX_ACCOUNTS_ORIGINAL_RUNTIME/bus}}"
@@ -17,6 +19,19 @@ export XDG_CACHE_HOME="$HOME/.cache/nyx-online-accounts-preview"
 export XDG_DATA_DIRS="$prefix/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 mkdir -p "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_STATE_HOME" "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_STATE_HOME" "$XDG_RUNTIME_DIR"
+# Follow the same appearance as the desktop without sharing writable configuration
+# or account data. Copy only theme inputs; never link the original directories.
+for theme_input in \
+    "$NYX_ACCOUNTS_ORIGINAL_CONFIG_HOME/nyx/theme.toml|$XDG_CONFIG_HOME/nyx/theme.toml" \
+    "$NYX_ACCOUNTS_ORIGINAL_STATE_HOME/omarchy/current/theme/colors.toml|$XDG_STATE_HOME/omarchy/current/theme/colors.toml"; do
+    theme_source="${theme_input%%|*}"
+    theme_copy="${theme_input#*|}"
+    if [[ -f "$theme_source" && "$theme_source" != "$theme_copy" ]]; then
+        mkdir -p -- "$(dirname -- "$theme_copy")"
+        install -m600 -- "$theme_source" "$theme_copy.tmp.$$"
+        mv -f -- "$theme_copy.tmp.$$" "$theme_copy"
+    fi
+done
 app="${1:-nyx-settings}"
 if [[ $# -gt 0 ]]; then shift; fi
 case "$app" in nyx-settings|nyx-mail|nyx-calendar|nyx-contacts|nyx-reminders|nyx-files|nyx-accountsctl|nyx-pim-migrate|nyx-local-copy) ;; *) exit 2;; esac
