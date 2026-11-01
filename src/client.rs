@@ -11,7 +11,7 @@ use std::{
 
 pub struct Client {
     connection: gio::DBusConnection,
-    watches: std::cell::RefCell<Vec<glib::SourceId>>,
+    watches: std::cell::RefCell<Vec<glib::JoinHandle<()>>>,
 }
 impl Client {
     pub fn connect() -> Result<Self> {
@@ -151,7 +151,9 @@ impl Client {
     pub fn watch(&self, callback: impl Fn() + 'static) {
         let mut previous = String::new();
         let connection = self.connection.clone();
-        let source = glib::timeout_add_local(std::time::Duration::from_secs(2), move || {
+        let source = glib::MainContext::ref_thread_default().spawn_local(async move {
+          loop {
+            glib::timeout_future(std::time::Duration::from_secs(2)).await;
             if let Ok(reply) = connection.call_sync(
                 Some(BUS),
                 PATH,
@@ -170,7 +172,7 @@ impl Client {
                     previous = current;
                 }
             }
-            glib::ControlFlow::Continue
+          }
         });
         self.watches.borrow_mut().push(source);
     }
@@ -178,7 +180,7 @@ impl Client {
 impl Drop for Client {
     fn drop(&mut self) {
         for source in self.watches.get_mut().drain(..) {
-            source.remove();
+            source.abort();
         }
     }
 }
