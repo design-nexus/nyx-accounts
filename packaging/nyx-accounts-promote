@@ -1,0 +1,76 @@
+#!/usr/bin/python3
+"""Promote native preview databases without moving secrets or replacing local app stores.
+
+Run only while preview and normal native writers are stopped. Back up normal
+application stores separately before invoking this explicit migration command.
+"""
+import argparse
+import json
+import os
+from pathlib import Path
+import sqlite3
+import uuid
+
+
+def snapshot(source, destination):
+    if source.is_symlink() or destination.exists():
+        raise RuntimeError('Refusing a symbolic-link source or existing destination')
+    destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with sqlite3.connect(source.as_uri() + '?mode=ro', uri=True) as original:
+        with sqlite3.connect(destination) as copied:
+            original.backup(copied)
+            if copied.execute('PRAGMA integrity_check').fetchone() != ('ok',):
+                raise RuntimeError('Database integrity check failed')
+    destination.chmod(0o600)
+
+
+def promote(preview, data, legacy):
+    targets = [('nyx-accounts-preview', 'accounts.sqlite3'), ('nyx-pim-preview', 'pim.sqlite3')]
+    marker = data / 'nyx-accounts-preview/promotion.json'
+    if marker.exists():
+        raise RuntimeError('Accounts have already been promoted; no files changed')
+    for directory, filename in targets:
+        if (data / directory).exists():
+            raise RuntimeError('Normal native storage already exists; reconcile it before promotion')
+        if not (preview / 'data' / directory / filename).is_file():
+            raise RuntimeError('Expected preview database is missing')
+    staging = data / ('.nyx-accounts-incoming-' + str(uuid.uuid4()))
+    staging.mkdir(mode=0o700, parents=True)
+    counts = {}
+    for directory, filename in targets:
+        target = staging / directory / filename
+        snapshot(preview / 'data' / directory / filename, target)
+        with sqlite3.connect(target) as db:
+            tables = db.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+            counts[directory] = {t: db.execute('SELECT count(*) FROM "' + t.replace('"', '""') + '"').fetchone()[0] for (t,) in tables}
+    # Keep the native Google UUID/credential binding, while associating its Mail
+    # cache with the old GOA identity. Never insert credentials into these files.
+    with sqlite3.connect(staging / targets[0][0] / targets[0][1]) as db:
+        for account_id, metadata in db.execute('SELECT id,metadata FROM accounts').fetchall():
+            account = json.loads(metadata)
+            matches = [a for a in legacy.get('accounts', []) if a['provider'] == account['provider'] and a['identity'].casefold() == account['identity'].casefold()]
+            if len(matches) > 1:
+                raise RuntimeError('More than one legacy account matches; resolve before migration')
+            if matches:
+                account['legacy_id'] = matches[0]['legacy_id']
+                db.execute('UPDATE accounts SET metadata=? WHERE id=?', (json.dumps(account), account_id))
+    receipt = {'version': 1, 'source': str(preview), 'table_counts': counts, 'credentials': 'existing Secret Service references retained'}
+    (staging / 'nyx-accounts-preview/promotion.json').write_text(json.dumps(receipt, indent=2) + '\n')
+    (staging / 'nyx-accounts-preview/promotion.json').chmod(0o600)
+    # All validation precedes either destination rename. A partial installation
+    # fails closed on the next run; it is never automatically overwritten.
+    for directory, _ in targets:
+        (staging / directory).rename(data / directory)
+    staging.rmdir()
+    (preview / 'PROMOTED').write_text('Normal applications now own these accounts. Keep this preview for recovery.\n')
+    (preview / 'PROMOTED').chmod(0o600)
+    print('Promoted account metadata and PIM data; existing local stores and keyring entries were not modified.')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--preview', type=Path, default=Path.home() / '.local/share/nyx-online-accounts-preview')
+    parser.add_argument('--data', type=Path, default=Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))))
+    parser.add_argument('--legacy-export', type=Path, required=True)
+    args = parser.parse_args()
+    promote(args.preview.resolve(), args.data.resolve(), json.loads(args.legacy_export.read_text()))

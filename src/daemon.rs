@@ -71,7 +71,7 @@ impl Daemon {
             )
         {
             return Err(zbus::fdo::Error::AccessDenied(
-                "Only installed preview account managers may change accounts".into(),
+                "Only installed account managers may change accounts".into(),
             ));
         }
         Ok(())

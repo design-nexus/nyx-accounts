@@ -71,7 +71,7 @@ pub async fn save_secret(id: &str, value: &Credentials) -> Result<()> {
     let bytes = zeroize::Zeroizing::new(serde_json::to_vec(value)?);
     collection
         .create_item(
-            "Nyx Online Accounts preview",
+            "Nyx Online Accounts",
             attributes(id),
             &bytes,
             true,

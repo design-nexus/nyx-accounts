@@ -116,7 +116,7 @@ pub fn find_bin(name: &str) -> Option<std::path::PathBuf> {
 }
 pub fn open_management() -> anyhow::Result<()> {
     let settings = find_bin("nyx-settings")
-        .ok_or_else(|| anyhow::anyhow!("Preview Settings is not installed"))?;
+        .ok_or_else(|| anyhow::anyhow!("Settings is not installed"))?;
     std::process::Command::new(settings)
         .args(["--section", "online-accounts"])
         .spawn()?;
@@ -146,7 +146,7 @@ pub fn service_lifetime_lock(path: &std::path::Path) -> anyhow::Result<std::fs::
         .mode(0o600)
         .open(path)?;
     guard.try_lock().map_err(|_| {
-        anyhow::anyhow!("The previous preview service is still shutting down; retry shortly")
+        anyhow::anyhow!("The previous account service is still shutting down; retry shortly")
     })?;
     Ok(guard)
 }

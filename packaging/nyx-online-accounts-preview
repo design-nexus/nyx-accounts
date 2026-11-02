@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ -f "$HOME/.local/share/nyx-online-accounts-preview/PROMOTED" ]]; then
+    echo 'Online Accounts now uses the normal Settings and app launchers. This preview is retained for recovery.' >&2
+    exit 1
+fi
 prefix="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 export NYX_ACCOUNTS_ORIGINAL_CONFIG_HOME="${NYX_ACCOUNTS_ORIGINAL_CONFIG_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}}"
 export NYX_ACCOUNTS_ORIGINAL_STATE_HOME="${NYX_ACCOUNTS_ORIGINAL_STATE_HOME:-${XDG_STATE_HOME:-$HOME/.local/state}}"
