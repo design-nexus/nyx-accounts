@@ -25,6 +25,19 @@ def snapshot(source, destination):
 
 
 def promote(preview, data, legacy):
+    writers = {'nyx-accountsd', 'nyx-cloudd', 'nyx-settings', 'nyx-calendar', 'nyx-calendard', 'nyx-contacts', 'nyx-reminders', 'nyx-remindersd', 'nyx-mail', 'nyx-maild'}
+    for process in Path('/proc').iterdir():
+        if not process.name.isdigit():
+            continue
+        try:
+            executable = os.readlink(process / 'exe').removesuffix(' (deleted)')
+            if Path(executable).name not in writers:
+                continue
+            environment = (process / 'environ').read_bytes().split(b'\0')
+            if os.fsencode('XDG_DATA_HOME=' + str(preview / 'data')) in environment:
+                raise RuntimeError('Stop preview applications and background engines before promotion')
+        except (PermissionError, FileNotFoundError, ProcessLookupError):
+            continue
     targets = [('nyx-accounts-preview', 'accounts.sqlite3'), ('nyx-pim-preview', 'pim.sqlite3')]
     marker = data / 'nyx-accounts-preview/promotion.json'
     if marker.exists():

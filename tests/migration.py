@@ -2,7 +2,7 @@
 """Synthetic migration fixture; original application stores and credentials are never opened."""
 import hashlib,json,os,pathlib,sqlite3,subprocess,tempfile
 root=pathlib.Path(__file__).resolve().parents[1]
-binary=root.parent/'nyx-core/target/debug/nyx-pim-migrate'
+binary=pathlib.Path(os.environ.get('NYX_PIM_MIGRATE_BIN',str(root.parent/'nyx-core/target/debug/nyx-pim-migrate')))
 with tempfile.TemporaryDirectory(prefix='nyx-migrate-fixture-') as temporary:
     base=pathlib.Path(temporary);(base/'original').mkdir();original=base/'original/attachment.txt';original.write_text('Original attachment remains untouched')
     calendar='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTIMEZONE\r\nTZID:Fixture/Custom\r\nBEGIN:STANDARD\r\nDTSTART:19700101T000000\r\nTZOFFSETFROM:+0230\r\nTZOFFSETTO:+0230\r\nEND:STANDARD\r\nEND:VTIMEZONE\r\nBEGIN:VEVENT\r\nUID:series\r\nDTSTART;TZID=Fixture/Custom:20261030T090000\r\nRRULE:FREQ=DAILY;COUNT=3\r\nSUMMARY:Original series\r\nX-FIXTURE:preserve\r\nATTACH:'+original.as_uri()+'\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:series\r\nRECURRENCE-ID;TZID=Fixture/Custom:20261031T090000\r\nDTSTART;TZID=Fixture/Custom:20261031T100000\r\nSUMMARY:Exception\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n'

@@ -35,10 +35,14 @@ Zoho, Fastmail, Nextcloud and generic-provider testing uses fixtures, as Ken req
 
 ## Preservation and verification boundaries
 
-Original application stores, existing external rclone configuration and provider records were not migrated, deleted or overwritten. The preview has separate data/config/runtime stores. Migration tools are explicit; fixture validation is complete, and applying them to production user data remains a separate deliberate action.
+During the approved Google-first rollout, native preview metadata/PIM data were promoted to normal storage and 32 legacy calendar/task sources plus five address books were imported as offline snapshots. Normal local Contacts rows, Mail drafts and 680 cached Mail files were checked against the private backup. Originals and external rclone configuration remain intact. Google keeps its native UUID/keyring reference and legacy Mail cache association. See ROLLOUT.md for installation and rollback boundaries.
 
 No manual pointer/keyboard/accessibility or notification-popup visual certification is claimed. The existing Settings layout was rendered and compared, and Ken confirmed its appearance. The other applications were exercised through installed engine/control interfaces. Natural wall-clock expiry was tested with a controlled clock/server rather than waiting an hour; live refresh exchange and subsequent provider access passed. Real keyring lock/unlock and revoking the user's Google grant were deliberately not exercised.
 
 Known provider limits remain documented in PROVIDERS.md: no unsupported contact photo/favorite conversions, no generic universal app-password revocation API, no client-managed DAV invitation delivery, and safe refusal of unrepresentable recurrence/task fields. These do not represent silently discarded data.
 
 Microsoft OAuth and live tests remain the remaining provider-development gate. The original explicit user merge approval and data-preservation gate remain in force even after Google success. No merge was performed.
+
+## Google-first rollout decision
+
+Ken subsequently selected normal installation and explicitly waived the Microsoft live-test merge gate. Microsoft remains deferred and unverified. Final merge still requires explicit approval after the prepared installation/migration results are presented. See ROLLOUT.md.

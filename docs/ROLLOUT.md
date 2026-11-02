@@ -28,3 +28,7 @@ Stop the new background engines before restoration. Restore saved binaries, desk
 ## Merge
 
 Prepare and test only on feature/nyx-online-accounts. Obtain explicit approval after presenting final revisions/results. Merge Accounts, Core, consumers and coordinator in that order, preserve immutable published pins, and never force-push. No pull request or public release is created automatically. Full Microsoft live validation remains follow-up work, not a claim of this release.
+
+## Preserved storage mount convention
+
+Existing and future Cloud accounts mount directly beneath the home directory, using the full display name. Native Google defaults to ~/Google Drive, Microsoft to ~/OneDrive and Nextcloud to ~/Nextcloud. Additional accounts use numbered suffixes. Existing Google Drive remote identity/preferences are retained during native conversion; original rclone configuration is not deleted or rewritten.

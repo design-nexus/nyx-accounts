@@ -41,3 +41,7 @@ Per-service grants constrain credential delivery to trusted Nyx consumers. Provi
 ## Merge gate
 
 Do not merge, rebase or cherry-pick into main automatically. Both real Google and personal Microsoft authorization must succeed; Mail, Calendar, Contacts, tasks/storage and data preservation must be validated; required automated checks must pass; Ken must then explicitly authorize merging. Implementation approval and preview installation do not authorize a merge.
+
+## Google-first rollout decision
+
+Ken subsequently selected normal installation and explicitly waived the Microsoft live-test merge gate. Microsoft remains deferred and unverified. Final merge still requires explicit approval after the prepared installation/migration results are presented. See ROLLOUT.md.

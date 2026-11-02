@@ -17,3 +17,7 @@ The installed FEATURE_COMMITS.json and FINAL_REPORT.md record feature branch hea
 Before merging: configure and live-test both Google and personal Microsoft OAuth; validate representative Mail/Calendar/Contacts/Reminders/Files operations, credential lifecycle and real migration/data preservation; resolve material compatibility issues; run required focused checks; then obtain Ken's explicit merge authorization. Passing mocks, preview installation and implementation approval never authorize merging.
 
 Non-Microsoft delivery and validation are recorded in NON_MICROSOFT_COMPLETION.md. Feature heads and the installed build inventory are updated after publication; consumers retain immutable tested code pins, which can precede later diagnostic/documentation commits. Google is live-tested; other non-Microsoft providers use fixtures as requested. Microsoft and explicit merge approval remain required before main integration.
+
+## Google-first rollout decision
+
+Ken subsequently selected normal installation and explicitly waived the Microsoft live-test merge gate. Microsoft remains deferred and unverified. Final merge still requires explicit approval after the prepared installation/migration results are presented. See ROLLOUT.md.

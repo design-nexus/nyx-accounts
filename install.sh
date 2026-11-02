@@ -8,8 +8,12 @@ mode="${1:---stage}"
 case "$mode" in --stage|--activate|accounts) ;; *) echo 'Usage: install.sh --stage|--activate|accounts' >&2; exit 2;; esac
 if [[ "$mode" == accounts ]]; then
     # Standalone/suite service installation has no sibling-repository dependency.
-    cargo build --release --locked --manifest-path "$source_dir/Cargo.toml"
     data="${XDG_DATA_HOME:-$HOME/.local/share}"
+    if [[ -f "$HOME/.local/share/nyx-online-accounts-preview/data/nyx-accounts-preview/accounts.sqlite3" && ! -f "$data/nyx-accounts-preview/promotion.json" ]]; then
+        echo 'Existing preview accounts require explicit promotion before normal service installation.' >&2
+        exit 1
+    fi
+    cargo build --release --locked --manifest-path "$source_dir/Cargo.toml"
     install -d "$HOME/.local/bin" "$data/dbus-1/services"
     for binary in nyx-accountsd nyx-accountsctl; do
         install -m755 "$source_dir/target/release/$binary" "$HOME/.local/bin/$binary.new"

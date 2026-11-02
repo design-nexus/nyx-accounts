@@ -21,3 +21,7 @@ Application-owned PIM synchronization and conflict resolution share a database-s
 The private preview bus reads only the preview prefix’s Nyx D-Bus service files. It does not load desktop session activation directories, so calls cannot auto-start a second Secret Service, portal, or GVfs instance. Account credential access explicitly connects to the original desktop bus via `NYX_ACCOUNTS_SECRET_BUS_ADDRESS`; the original keyring and collections are never replaced or reset.
 
 Explicit OAuth renewal is manager-only, serialized with credential and account changes, and returns only success. It refuses accounts requiring sign-in, so refreshing existing grants cannot clear a scope-change reauthorization requirement.
+
+## Normal desktop installation
+
+Normal managers/consumers are validated under ~/.local/bin and use the original desktop bus/Secret Service directly. Existing compatibility identifiers and credential attributes remain stable. Promotion retains account UUIDs without exporting secrets and guards subsequent preview launches. Normal and preview account engines must not run concurrently after promotion. Deferred/reauthorizing accounts retain metadata and caches but are excluded from background authentication attempts.
