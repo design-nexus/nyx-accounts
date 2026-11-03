@@ -20,6 +20,7 @@ uuid = { version = "1", features = ["v4"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-native-roots", "blocking"] }
 zeroize = { version = "1", features = ["derive"] }
 roxmltree = "0.21"
+nyx-peer = { git = "https://github.com/design-nexus/nyx-core.git", rev = "0f1c0e8f0359a58f2d702180f34dafffafe3db44" }
 rusqlite = { version = "0.40", features = ["bundled"] }
 
 [[bin]]

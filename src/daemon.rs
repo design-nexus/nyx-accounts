@@ -64,12 +64,11 @@ impl Daemon {
             .process_id()
             .ok_or_else(|| zbus::fdo::Error::AccessDenied("Caller PID unavailable".into()))?;
         let executable = std::fs::read_link(format!("/proc/{pid}/exe")).map_err(safe_error)?;
-        if executable.parent() != Some(self.prefix.join("bin").as_path())
-            || !matches!(
-                executable.file_name().and_then(|s| s.to_str()),
-                Some("nyx-settings" | "nyx-accountsctl" | "nyx-pim-migrate")
-            )
-        {
+        let program = nyx_peer::program(&executable, &self.prefix.join("bin"));
+        if !matches!(
+            program.as_deref(),
+            Some("nyx-settings" | "nyx-accountsctl" | "nyx-pim-migrate")
+        ) {
             return Err(zbus::fdo::Error::AccessDenied(
                 "Only installed account managers may change accounts".into(),
             ));
@@ -98,15 +97,9 @@ impl Daemon {
         anyhow::ensure!(cred.uid() == own.uid(), "Caller UID mismatch");
         let pid = cred.pid().context("Caller PID unavailable")?;
         let executable = std::fs::read_link(format!("/proc/{pid}/exe"))?;
-        let bin = self.prefix.join("bin");
-        let name = executable
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or_default();
-        anyhow::ensure!(
-            executable.parent() == Some(bin.as_path()),
-            "Caller is not an installed preview consumer"
-        );
+        let name = nyx_peer::program(&executable, &self.prefix.join("bin"))
+            .context("Caller is not an installed preview consumer")?;
+        let name = name.as_str();
         if manager {
             anyhow::ensure!(
                 matches!(name, "nyx-settings" | "nyx-accountsctl"),

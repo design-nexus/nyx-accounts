@@ -1120,6 +1120,7 @@ dependencies = [
  "futures-util",
  "gio",
  "glib",
+ "nyx-peer",
  "oauth2",
  "reqwest",
  "roxmltree",
@@ -1133,6 +1134,11 @@ dependencies = [
  "zbus",
  "zeroize",
 ]
+
+[[package]]
+name = "nyx-peer"
+version = "0.1.0"
+source = "git+https://github.com/design-nexus/nyx-core.git?rev=0f1c0e8f0359a58f2d702180f34dafffafe3db44#0f1c0e8f0359a58f2d702180f34dafffafe3db44"
 
 [[package]]
 name = "oauth2"
