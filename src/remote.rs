@@ -382,15 +382,19 @@ impl Remote {
             if !result.is_empty() {
                 return Ok(result);
             }
-            let link = xml
-                .descendants()
-                .find(|n| n.has_tag_name((namespace, home)))
-                .or_else(|| {
-                    xml.descendants()
-                        .find(|n| n.has_tag_name(("DAV:", "current-user-principal")))
-                })
-                .and_then(|n| n.descendants().find(|n| n.has_tag_name(("DAV:", "href"))))
-                .and_then(|n| n.text())
+            let href_in = |ns: &str, tag: &str| {
+                xml.descendants()
+                    .filter(|n| n.has_tag_name((ns, tag)))
+                    .find_map(|n| {
+                        n.descendants()
+                            .find(|h| h.has_tag_name(("DAV:", "href")))
+                            .and_then(|h| h.text())
+                            .map(str::trim)
+                            .filter(|s| !s.is_empty())
+                    })
+            };
+            let link = href_in(namespace, home)
+                .or_else(|| href_in("DAV:", "current-user-principal"))
                 .context("No DAV collections discovered; enter a collection URL")?;
             let next = current.join(link)?;
             anyhow::ensure!(
