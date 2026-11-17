@@ -14,7 +14,7 @@ The service owns authentication, Secret Service credentials, refresh and grants.
 
 `install-preview.sh` builds and installs the feature binaries under `~/.local/opt/nyx-online-accounts-preview` and installs the Online Accounts Preview launcher. It does not start applications or enable systemd units. The launcher joins a shared private bus (starting it on explicit launch when needed) and uses separate XDG data/config/cache/state paths. Concurrent preview apps share account refresh and storage services.
 
-`install.sh accounts` installs the standalone service on the normal desktop bus. `install.sh --stage` builds the coordinated normal application installation; `--activate` installs it after explicit data promotion. See [Google-first rollout and rollback](docs/ROLLOUT.md). Installation never opens graphical applications.
+On NyxOS, Online Accounts comes with the system. Elsewhere, `install.sh accounts` installs the standalone service on the normal desktop bus. `install.sh --stage` builds the coordinated normal application installation; `--activate` installs it after explicit data promotion. See [Google-first rollout and rollback](docs/ROLLOUT.md). Installation never opens graphical applications.
 
 Explicit snapshot tooling is included: `nyx-pim-migrate export FILE` reads legacy EDS data and account metadata without copying secrets; `import FILE` creates native snapshots and account metadata requiring fresh authorization. `nyx-local-copy` copies local Mail/Contacts data only when a destination does not already exist. These operations are never run automatically against user data.
 
