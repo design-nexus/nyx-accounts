@@ -26,6 +26,51 @@ pub struct Daemon {
     jobs: Arc<Mutex<HashMap<String, tokio::task::JoinHandle<()>>>>,
     refresh: Arc<tokio::sync::Mutex<()>>,
 }
+async fn verify_app_password(
+    account: &Account,
+    credentials: Credentials,
+) -> (&'static str, Option<String>) {
+    let target = [
+        (Service::Calendar, "caldav", false),
+        (Service::Contacts, "carddav", true),
+        (Service::Files, "webdav", false),
+    ]
+    .into_iter()
+    .find_map(|(service, key, contacts)| {
+        account
+            .enabled
+            .contains(&service)
+            .then(|| account.endpoints.get(key).map(|url| (url.clone(), contacts)))
+            .flatten()
+    });
+    let Some((endpoint, contacts)) = target else {
+        return ("configured", None);
+    };
+    let account = account.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        crate::remote::Remote::new(account, credentials)?.dav_collections(&endpoint, contacts)
+    })
+    .await;
+    match result {
+        Ok(Ok(_)) => ("connected", None),
+        Ok(Err(e)) => {
+            let msg = e.to_string();
+            if msg.contains("(401)") || msg.contains("(403)") {
+                (
+                    "needs_sign_in",
+                    Some("The provider rejected sign-in. Check your email address, app password, and server settings.".into()),
+                )
+            } else {
+                (
+                    "configured",
+                    Some(format!("Could not reach the server: {msg}")),
+                )
+            }
+        }
+        Err(_) => ("configured", Some("Could not verify the server connection.".into())),
+    }
+}
+
 fn safe_error(_: impl std::fmt::Display) -> zbus::fdo::Error {
     zbus::fdo::Error::Failed(
         "Account operation failed; check account status or unlock the keyring".into(),
@@ -303,22 +348,21 @@ impl Daemon {
             || (matches!(account.provider.as_str(), "google" | "microsoft_personal") && account.status == "needs_sign_in") {
             return Ok(account.status);
         }
-        let status = match oauth::credential(&account).await {
+        let (status, error) = match oauth::credential(&account).await {
             Ok(credentials) => {
-                if credentials.access_token.is_empty() {
-                    "configured"
+                if !credentials.access_token.is_empty() {
+                    ("connected", None)
                 } else {
-                    "connected"
+                    verify_app_password(&account, credentials).await
                 }
             }
-            Err(_) => "needs_sign_in",
+            Err(_) => (
+                "needs_sign_in",
+                Some("Credentials are unavailable. Unlock Secret Service, check the network, or sign in again.".into()),
+            ),
         };
         account.status = status.into();
-        account.error = if status == "needs_sign_in" {
-            Some("Credentials are unavailable. Unlock Secret Service, check the network, or sign in again.".into())
-        } else {
-            None
-        };
+        account.error = error;
         self.save(&account).map_err(safe_error)?;
         Ok(status.into())
     }
